@@ -1,0 +1,135 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens. Text colors are chosen for at least 4.5:1 contrast against
+ * both --background and --surface; --focus has at least 3:1 against every
+ * page surface (WCAG 2.2 AA).
+ */
+:root {
+  /*
+   * "Fully round" corners. Browsers shrink any corner radius that won't fit
+   * to the largest that does, so a huge value always gives the roundest
+   * shape: a circle on a square box, a pill on a rectangle (unlike 50%,
+   * which turns rectangles into ellipses). Tailwind's rounded-full is the
+   * same trick.
+   */
+  --radius-fully-round: 9999px;
+
+  --background: #f5f7f3;
+  --surface: #ffffff;
+  --surface-muted: #eef2ec;
+  --foreground: #18211c;
+  --muted: #4f5c55;
+  --border: #d5ddd6;
+  --accent: #1d6a46;
+  --accent-hover: #155537;
+  --accent-soft: #e2f0e7;
+  --on-accent: #ffffff;
+  --warn: #b45309;
+  --warn-soft: #fef3c7;
+  --danger: #b91c1c;
+  --danger-soft: #fee2e2;
+  --focus: #1d4ed8;
+  color-scheme: light;
+}
+
+/*
+ * Dark colors apply when the device asks for dark and the visitor hasn't
+ * picked light, or when they've picked dark (the header's theme button sets
+ * data-theme on <html>; see ThemeToggle).
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: #0e1411;
+    --surface: #151d19;
+    --surface-muted: #1c2621;
+    --foreground: #e6ece8;
+    --muted: #a2b1a8;
+    --border: #2c3a33;
+    --accent: #6cc996;
+    --accent-hover: #8ad8ad;
+    --accent-soft: #19362a;
+    --on-accent: #0b1f15;
+    --warn: #fbbf24;
+    --warn-soft: #3a2e0b;
+    --danger: #f87171;
+    --danger-soft: #3b1414;
+    --focus: #93c5fd;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --background: #0e1411;
+  --surface: #151d19;
+  --surface-muted: #1c2621;
+  --foreground: #e6ece8;
+  --muted: #a2b1a8;
+  --border: #2c3a33;
+  --accent: #6cc996;
+  --accent-hover: #8ad8ad;
+  --accent-soft: #19362a;
+  --on-accent: #0b1f15;
+  --warn: #fbbf24;
+  --warn-soft: #3a2e0b;
+  --danger: #f87171;
+  --danger-soft: #3b1414;
+  --focus: #93c5fd;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-focus: var(--focus);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@layer base {
+  /* In-page links (#experience, #projects) scroll smoothly; Next.js keeps
+     page-to-page navigation instant (data-scroll-behavior on <html>). */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+  }
+
+  /* One consistent, highly visible focus indicator for every focusable element. */
+  :focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  /* Elements that only receive focus from code (the page heading after a
+     navigation, <main> from the skip link) aren't controls; no ring. */
+  [tabindex="-1"]:focus {
+    outline: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "overrides": [
+    {
+      "files": "apps/web/**",
+      "options": {
+        "plugins": ["prettier-plugin-tailwindcss"],
+        "tailwindStylesheet": "./apps/web/src/app/globals.css"
+      }
+    }
+  ]
+}
