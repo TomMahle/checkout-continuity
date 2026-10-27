@@ -89,6 +89,25 @@ describe("watchEvents", () => {
     watch.stop();
   });
 
+  it("gives up on a 404 and says so, since retrying can't help", async () => {
+    let attempts = 0;
+    const fetch = (async () => {
+      attempts += 1;
+      return new Response("{}", { status: 404 });
+    }) as unknown as typeof globalThis.fetch;
+    const onGone = vi.fn();
+    watchEvents({
+      url: "/events",
+      fetch,
+      onData: () => {},
+      onGone,
+      backoffMs: [1],
+    });
+    await until(() => onGone.mock.calls.length === 1);
+    await new Promise((r) => setTimeout(r, 30));
+    expect(attempts).toBe(1);
+  });
+
   it("stops for good: aborts the open stream and never reconnects", async () => {
     const server = fakeServer();
     const watch = watchEvents({

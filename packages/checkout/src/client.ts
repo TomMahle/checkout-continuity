@@ -121,12 +121,18 @@ export function createCheckoutClient(options: ClientOptions = {}) {
 
     /**
      * Live snapshots over server-sent events: one on connect, then one per
-     * change. Reconnects until stopped. These carry no clock anchor.
+     * change. Reconnects until stopped, or until the session turns out not
+     * to exist (`onGone`). These carry no clock anchor.
      */
-    watchSession: (id: string, onSnapshot: (s: SessionSnapshot) => void) =>
+    watchSession: (
+      id: string,
+      onSnapshot: (s: SessionSnapshot) => void,
+      onGone?: () => void,
+    ) =>
       watchEvents({
         url: `${baseUrl}${session(id)}/events`,
         fetch: streamFetch,
+        onGone,
         onData(data) {
           try {
             const parsed = sessionSnapshotSchema.safeParse(JSON.parse(data));

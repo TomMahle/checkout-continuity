@@ -379,6 +379,10 @@ test.describe("checkout API @desktop", () => {
     expect(bad.status()).toBe(400);
     expect((await bad.json()).code).toBe("bad_request");
     expect((await request.get("/api/sessions/cs_nope")).status()).toBe(404);
+    // Not an empty 200 stream, which clients would reconnect to forever.
+    expect((await request.get("/api/sessions/cs_nope/events")).status()).toBe(
+      404,
+    );
   });
 
   test("an unknown session page is a real 404, rendered on the server", async ({

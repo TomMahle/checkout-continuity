@@ -1,4 +1,4 @@
-import { getCheckoutStore } from "@/lib/checkout/server";
+import { getCheckoutStore, respond } from "@/lib/checkout/server";
 
 /**
  * Server-sent events: a snapshot on connect, then one whenever the session
@@ -11,6 +11,9 @@ export async function GET(
 ) {
   const { id } = await ctx.params;
   const store = getCheckoutStore();
+  // A 404, not an empty stream: clients stop reconnecting on it.
+  const found = store.getSession(id);
+  if (!found.ok) return respond(found);
   const encoder = new TextEncoder();
   let cleanup = () => {};
 

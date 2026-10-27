@@ -126,6 +126,26 @@ export function StatusBanners({ session }: { session: WebCheckoutSession }) {
   );
 }
 
+/** The server no longer knows this session (say, it restarted). */
+export function GoneBanner({ ticketId }: { ticketId?: string }) {
+  return (
+    <div role="status">
+      <Banner kind="danger" title="This checkout is gone">
+        The server doesn&apos;t know this checkout anymore, probably because it
+        restarted. Nothing was charged.
+        {ticketId && (
+          <form action={startCheckout} className="mt-3">
+            <input type="hidden" name="ticketId" value={ticketId} />
+            <button type="submit" className={primaryButton}>
+              Start over
+            </button>
+          </form>
+        )}
+      </Banner>
+    </div>
+  );
+}
+
 /** A refusal the snapshot can't explain by itself (see session-view.ts in @continuity/checkout). */
 export function ProblemBanner({ problem }: { problem: string | null }) {
   if (!problem) return null;

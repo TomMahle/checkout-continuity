@@ -35,6 +35,11 @@ export interface WatchOptions {
   /** Must stream `response.body`. Defaults to the global `fetch`. */
   fetch?: typeof fetch;
   onData: (data: string) => void;
+  /**
+   * The server answered 404: what's being watched no longer exists (a
+   * restarted demo server forgets every session). Watching stops for good.
+   */
+  onGone?: () => void;
   /** Waits before each reconnect; the last one repeats. Reset by a connect. */
   backoffMs?: number[];
 }
@@ -47,7 +52,10 @@ export interface Watch {
 
 const DEFAULT_BACKOFF_MS = [1000, 2000, 5000, 10_000];
 
-/** Keeps a stream open until stopped, reconnecting when it ends or fails. */
+/**
+ * Keeps a stream open until stopped, reconnecting when it ends or fails,
+ * except after a 404, which no retry will fix.
+ */
 export function watchEvents(options: WatchOptions): Watch {
   const doFetch = options.fetch ?? ((...args) => fetch(...args));
   const backoff = options.backoffMs ?? DEFAULT_BACKOFF_MS;
@@ -73,6 +81,11 @@ export function watchEvents(options: WatchOptions): Watch {
       headers: { accept: "text/event-stream" },
       signal: abort.signal,
     });
+    if (response.status === 404) {
+      stopped = true;
+      options.onGone?.();
+      return;
+    }
     if (!response.ok || !response.body) {
       throw new Error(`Event stream failed: ${response.status}`);
     }

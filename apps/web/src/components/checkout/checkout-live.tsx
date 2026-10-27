@@ -1,7 +1,7 @@
 "use client";
 
 import type { SessionSnapshot, Surface } from "@continuity/checkout";
-import { ProblemBanner, StatusBanners } from "./banners";
+import { GoneBanner, ProblemBanner, StatusBanners } from "./banners";
 import { OrderSummary } from "./order-summary";
 import { PayButtons } from "./pay-buttons";
 import { useWebCheckoutSession } from "./use-checkout-session";
@@ -22,6 +22,9 @@ export function CheckoutLive({
 }) {
   const session = useWebCheckoutSession(initial, surface);
   const { status } = session.snapshot;
+  if (session.gone) {
+    return <GoneBanner ticketId={session.snapshot.items[0]?.ticketId} />;
+  }
   return (
     <div className="flex flex-col gap-5">
       <div role="status" className="flex flex-col gap-3 empty:hidden">

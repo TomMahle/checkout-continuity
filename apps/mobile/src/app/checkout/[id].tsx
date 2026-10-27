@@ -53,7 +53,7 @@ export default function CheckoutScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [needsAck, priceKey]);
 
-  if (session.loadError && !snapshot) {
+  if (session.loadError && (session.gone || !snapshot)) {
     return (
       <Centered>
         <Stack.Screen options={{ title: "Checkout" }} />

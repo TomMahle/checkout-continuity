@@ -37,6 +37,8 @@ export interface CheckoutSessionOptions {
   subscribeForeground: (onForeground: () => void) => () => void;
 }
 
+const GONE_TEXT = "This checkout doesn't exist (or the server restarted).";
+
 const noopSubscribe = () => () => {};
 /** False while rendering on the server and during hydration, true after. */
 const useHydrated = () =>
@@ -62,6 +64,11 @@ export function useCheckoutSession(options: CheckoutSessionOptions) {
   const [busy, setBusy] = useState<Busy>(null);
   const [problem, setProblem] = useState<Problem | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  /**
+   * The server doesn't know this session (a restarted demo server forgets
+   * them all). Nothing will change it, so stop watching and asking.
+   */
+  const [gone, setGone] = useState(false);
   const version = useRef(options.initial?.version ?? 0);
   /** One key per payment attempt; kept across network retries, dropped on any answer. */
   const payKey = useRef<string | null>(null);
@@ -82,22 +89,25 @@ export function useCheckoutSession(options: CheckoutSessionOptions) {
     [],
   );
 
+  const markGone = useCallback(() => {
+    setGone(true);
+    setLoadError(GONE_TEXT);
+  }, []);
+
   const refresh = useCallback(() => {
     const resume = resumeNext.current;
     resumeNext.current = false;
     void client.getSession(id, surface, resume).then((result) => {
+      if (!result.ok && result.code === "not_found") return markGone();
       if (!result.ok && !result.snapshot) {
-        setLoadError(
-          result.code === "not_found"
-            ? "This checkout doesn't exist (or the server restarted)."
-            : result.message,
-        );
+        setLoadError(result.message);
         return;
       }
+      setGone(false);
       setLoadError(null);
       apply(result.snapshot, result.anchor);
     });
-  }, [apply, client, id, surface]);
+  }, [apply, client, id, surface, markGone]);
 
   // After mount: an anchored snapshot (a server-rendered one is a few hundred
   // ms old and has no anchor), then keep time locally.
@@ -109,10 +119,10 @@ export function useCheckoutSession(options: CheckoutSessionOptions) {
 
   // Live updates while anything can still change. Before the first snapshot
   // we don't know yet, so watch.
-  const live = snapshot ? isLive(snapshot.status) : true;
+  const live = !gone && (snapshot ? isLive(snapshot.status) : true);
   useEffect(() => {
     if (!live) return;
-    const watch = client.watchSession(id, (next) => apply(next));
+    const watch = client.watchSession(id, (next) => apply(next), markGone);
     // Back in view: the stream may have died while hidden (a suspended app
     // always loses it), so catch up now and reconnect without waiting.
     const unsubscribe = subscribeForeground(() => {
@@ -123,9 +133,9 @@ export function useCheckoutSession(options: CheckoutSessionOptions) {
       watch.stop();
       unsubscribe();
     };
-  }, [live, apply, client, id, refresh, subscribeForeground]);
+  }, [live, apply, client, id, refresh, subscribeForeground, markGone]);
 
-  const open = snapshot !== null && isOpen(snapshot.status);
+  const open = !gone && snapshot !== null && isOpen(snapshot.status);
   // Until anchored, show what the server said (matches server-rendered HTML).
   const remaining = !snapshot
     ? null
@@ -143,7 +153,12 @@ export function useCheckoutSession(options: CheckoutSessionOptions) {
     return () => clearInterval(retry);
   }, [timeIsUp, refresh]);
 
-  const payable = canPay({ snapshot, remaining, busy, interactive: hydrated });
+  const payable = canPay({
+    snapshot,
+    remaining,
+    busy,
+    interactive: hydrated && !gone,
+  });
 
   async function pay(payment: PaymentBehaviour) {
     if (!snapshot || !payable) return;
@@ -157,6 +172,7 @@ export function useCheckoutSession(options: CheckoutSessionOptions) {
       surface,
     });
     if (result.ok || result.code !== "network_error") payKey.current = null;
+    if (!result.ok && result.code === "not_found") markGone();
     apply(result.snapshot, result.anchor);
     setProblem(problemFor(result, version.current));
     setBusy(null);
@@ -167,6 +183,7 @@ export function useCheckoutSession(options: CheckoutSessionOptions) {
     setBusy("accept");
     setProblem(null);
     const result = await client.acknowledgePrice(id, snapshot.version, surface);
+    if (!result.ok && result.code === "not_found") markGone();
     apply(result.snapshot, result.anchor);
     setProblem(problemFor(result, version.current));
     setBusy(null);
@@ -183,7 +200,9 @@ export function useCheckoutSession(options: CheckoutSessionOptions) {
     busy,
     /** Only while the session is still at the version it was about. */
     problem: currentProblem(problem, snapshot),
-    /** The first load failed with nothing to show (gone, or unreachable). */
+    /** The session no longer exists; the snapshot, if any, is stale. */
+    gone,
+    /** Why there is nothing current to show (gone, or unreachable). */
     loadError,
     pay,
     acceptPrice,
