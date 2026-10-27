@@ -50,7 +50,7 @@ const pay = (
   extra: { key?: string; payment?: "success" | "fail" | "slow_success" } = {},
 ) =>
   store.complete(s.id, {
-    version: s.version,
+    totalCents: s.totalCents,
     idempotencyKey: extra.key ?? `key-${++keyCounter}-aaaa`,
     payment: extra.payment,
   });
@@ -284,17 +284,44 @@ describe("price changes", () => {
   });
 });
 
-describe("version conflicts", () => {
-  it("rejects a stale version with the current snapshot", async () => {
+describe("stale views", () => {
+  it("refuses a total the fan wasn't shown, with the current snapshot", async () => {
     const { store } = setup();
     const s = create(store);
-    store.setPrice("a", 8000); // bumps the version on next read
-    const result = await store.complete(s.id, {
-      version: s.version,
-      idempotencyKey: "stale-key-1",
-    });
-    expect(result).toMatchObject({ ok: false, code: "version_conflict" });
+    store.setPrice("a", 8000); // a drop, taken on next read
+    const result = await pay(store, s);
+    expect(result).toMatchObject({ ok: false, code: "total_changed" });
     expect(!result.ok && result.snapshot?.priceDrops).toHaveLength(1);
+  });
+
+  it("refuses the old total after a rise was accepted elsewhere", async () => {
+    const { store } = setup();
+    const s = create(store);
+    store.setPrice("a", 9000);
+    store.acknowledgePrice(s.id, get(store, s.id).version);
+    expect(await pay(store, s)).toMatchObject({
+      ok: false,
+      code: "total_changed",
+    });
+  });
+
+  it("pays from a window that missed a decline elsewhere", async () => {
+    const { store } = setup();
+    const s = create(store);
+    await pay(store, s, { payment: "fail" }); // the other window
+    expect(get(store, s.id).version).toBeGreaterThan(s.version);
+    const result = await pay(store, s);
+    expect(result.ok && result.orderId).toMatch(/^ord_/);
+  });
+
+  it("pays when the price went back to what the fan saw", async () => {
+    const { store } = setup();
+    const s = create(store);
+    store.setPrice("a", 9000);
+    get(store, s.id);
+    store.setPrice("a", 8500);
+    const result = await pay(store, s);
+    expect(result.ok).toBe(true);
   });
 
   it("rejects acknowledging with a stale version", () => {
@@ -327,7 +354,7 @@ describe("completing", () => {
     const s = create(store);
     const first = await pay(store, s, { key: "press-1-abcd" });
     const second = await store.complete(s.id, {
-      version: s.version, // stale, as a retrying client's would be
+      totalCents: s.totalCents,
       idempotencyKey: "press-1-abcd",
     });
     expect(first.ok && second.ok && second.orderId).toBe(
@@ -343,7 +370,7 @@ describe("completing", () => {
     const first = await pay(store, s, { key: "press-1-abcd", payment: "fail" });
     expect(first).toMatchObject({ ok: false, code: "payment_failed" });
     const again = await store.complete(s.id, {
-      version: s.version,
+      totalCents: s.totalCents,
       idempotencyKey: "press-1-abcd",
       payment: "success",
     });
@@ -537,7 +564,7 @@ describe("analytics", () => {
     const seen = get(store, id);
     store.acknowledgePrice(id, seen.version, "app");
     await store.complete(id, {
-      version: seen.version + 1,
+      totalCents: 9000,
       idempotencyKey: "analytics-1",
       surface: "app",
     });

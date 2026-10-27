@@ -24,7 +24,7 @@ hiding a price increase.
 | API        | `apps/web/src/app/api`                  | Route handlers: thin adapters (parse with zod, call the store, return the result).                                                                      |
 | Web        | `apps/web/src/app/checkout`             | `/checkout` (tickets), `/checkout/[id]` (the session), `/checkout/admin` (levers and the event log).                                                    |
 | Mobile     | `apps/mobile/src/app/checkout/[id].tsx` | Opens from `continuity://checkout/<id>`. Same session, same API client.                                                                                 |
-| Unit tests | `packages/checkout/src/*.test.ts`       | Every transition, lazy expiry, version conflicts, idempotency, races, timeouts.                                                                         |
+| Unit tests | `packages/checkout/src/*.test.ts`       | Every transition, lazy expiry, stale totals and versions, idempotency, races, timeouts.                                                                 |
 | E2E tests  | `apps/web/e2e/checkout.spec.ts`         | Desktop + phone contexts, admin edits, slow payment, API races, no-JS first response, axe.                                                              |
 
 Payment, inventory and the catalog are stubs behind small interfaces
@@ -132,9 +132,11 @@ Rules worth knowing:
   gateway instead of being lost or double-applied.
 - **`expired` also covers "gave up"**: `failureReason` says why
   (`hold_expired`, `admin_expired`, `too_many_payment_failures`).
-- **Every mutation takes the `version` the client saw.** A mismatch is a 409
-  carrying the current snapshot, so the client just re-renders. Version is
-  bumped on every status or quote change.
+- **Paying takes the total the client showed; accepting a price takes the
+  `version` it saw.** A mismatch is a 409 carrying the current snapshot, so
+  the client just re-renders. Version is bumped on every status or quote
+  change, but paying only cares whether the amount moved: a decline in
+  another window doesn't make this one confirm anything.
 
 ### Lazy expiry
 
@@ -241,8 +243,8 @@ each quote with the live catalog, **per ticket**:
   bumped and an inline "a price dropped" notice shows. It doesn't block.
 - **Reverted before acknowledgement:** back to `active` on its own.
 - **Server enforcement:** `complete` refuses unless the status is payable, so a
-  stale client can't pay an old price: a stale version is a conflict, and a
-  `price_changed` session is `price_not_acknowledged`.
+  stale client can't pay an old price: a total other than the current one is
+  `total_changed`, and a `price_changed` session is `price_not_acknowledged`.
 
 ### Duplicate completion
 
@@ -328,7 +330,7 @@ response that concerns a session carries its snapshot, including errors.
 | `POST /api/sessions` `{ticketId, surface}`                                              | Create a session, hold stock. 409 `sold_out` |
 | `GET /api/sessions/:id?surface=&resume=1`                                               | Snapshot                                     |
 | `POST /api/sessions/:id/acknowledge-price` `{version}`                                  | Accept current prices                        |
-| `POST /api/sessions/:id/complete` `{version, idempotencyKey, payment}`                  | Pay (`success`, `fail`, `slow_success`)      |
+| `POST /api/sessions/:id/complete` `{totalCents, idempotencyKey, payment}`               | Pay (`success`, `fail`, `slow_success`)      |
 | `GET /api/sessions/:id/events`                                                          | Server-sent snapshots                        |
 | `GET /api/admin/state`                                                                  | Catalog, sessions, clock, TTL, event log     |
 | `POST /api/admin/tickets`, `PATCH /api/admin/tickets/:id`                               | Add a ticket; set price and/or stock         |

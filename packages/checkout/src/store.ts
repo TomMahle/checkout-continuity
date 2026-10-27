@@ -270,6 +270,11 @@ export function createCheckoutStore(options: StoreOptions = {}) {
     return s.version !== before;
   }
 
+  /** What the fan pays: the quoted prices, as accepted. */
+  function totalOf(s: Session) {
+    return s.items.reduce((sum, i) => sum + i.quotedPriceCents, 0);
+  }
+
   function snapshot(s: Session): SessionSnapshot {
     return {
       id: s.id,
@@ -278,7 +283,7 @@ export function createCheckoutStore(options: StoreOptions = {}) {
       version: s.version,
       expiresAt: s.expiresAt,
       serverNow: clock.now(),
-      totalCents: s.items.reduce((sum, i) => sum + i.quotedPriceCents, 0),
+      totalCents: totalOf(s),
       priceChanges: s.status === "price_changed" ? mismatches(s) : [],
       priceDrops: s.priceDrops,
       ...(s.orderId ? { orderId: s.orderId } : {}),
@@ -458,7 +463,7 @@ export function createCheckoutStore(options: StoreOptions = {}) {
     async complete(
       id: string,
       request: {
-        version: number;
+        totalCents: number;
         idempotencyKey: string;
         payment?: PaymentBehaviour;
         surface?: Surface;
@@ -523,8 +528,10 @@ export function createCheckoutStore(options: StoreOptions = {}) {
         default:
           break;
       }
-      if (request.version !== s.version) {
-        return fail("version_conflict", "The session changed.", s);
+      // Pay only the total the fan was shown. Other changes since then (a
+      // decline in another window, say) don't change what they agreed to.
+      if (request.totalCents !== totalOf(s)) {
+        return fail("total_changed", "The total changed.", s);
       }
       if (s.status === "price_changed") {
         return fail(
@@ -634,7 +641,7 @@ export function createCheckoutStore(options: StoreOptions = {}) {
     },
   ): Promise<CompleteResult> {
     const key = request.idempotencyKey;
-    const amountCents = s.items.reduce((sum, i) => sum + i.quotedPriceCents, 0);
+    const amountCents = totalOf(s);
 
     let charge: Awaited<ReturnType<PaymentGateway["charge"]>>;
     try {

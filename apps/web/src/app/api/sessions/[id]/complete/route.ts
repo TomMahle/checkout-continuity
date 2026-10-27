@@ -3,7 +3,7 @@ import { getCheckoutStore, parseBody, respond } from "@/lib/checkout/server";
 
 /**
  * Pays. 200 with the order; 402 if the card failed; 409 for every conflict
- * (stale version, another payment in progress, expired, price not accepted).
+ * (total changed, another payment in progress, expired, price not accepted).
  * All of them carry the current snapshot.
  */
 export async function POST(

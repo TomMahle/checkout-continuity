@@ -87,7 +87,8 @@ export const acknowledgePriceBodySchema = z.object({
 });
 
 export const completeBodySchema = z.object({
-  version: z.number().int().positive(),
+  /** The total the fan was shown; paying anything else is refused. */
+  totalCents: z.number().int().nonnegative(),
   /** One per payment attempt: reused on retries, fresh after a definitive result. */
   idempotencyKey: z.string().min(8).max(128),
   payment: paymentBehaviourSchema.default("success"),
@@ -119,6 +120,7 @@ export const errorCodeSchema = z.enum([
   "ticket_not_found",
   "sold_out",
   "version_conflict",
+  "total_changed",
   "session_expired",
   "price_not_acknowledged",
   "nothing_to_acknowledge",
@@ -136,6 +138,7 @@ const STATUS: Record<ErrorCode, number> = {
   payment_failed: 402,
   sold_out: 409,
   version_conflict: 409,
+  total_changed: 409,
   session_expired: 409,
   price_not_acknowledged: 409,
   nothing_to_acknowledge: 409,

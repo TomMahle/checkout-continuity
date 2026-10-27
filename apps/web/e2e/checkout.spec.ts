@@ -273,10 +273,10 @@ test.describe("checkout API @desktop", () => {
   }) => {
     const ticket = await newTicket(request, { available: 5 });
     const { body } = await createSession(request, ticket.id);
-    const { id, version } = body.snapshot;
+    const { id, totalCents } = body.snapshot;
     const attempt = (key: string) =>
       request.post(`/api/sessions/${id}/complete`, {
-        data: { version, idempotencyKey: key, payment: "slow_success" },
+        data: { totalCents, idempotencyKey: key, payment: "slow_success" },
       });
 
     const [a, b] = await Promise.all([
@@ -301,9 +301,9 @@ test.describe("checkout API @desktop", () => {
   }) => {
     const ticket = await newTicket(request, { available: 5 });
     const { body } = await createSession(request, ticket.id);
-    const { id, version } = body.snapshot;
+    const { id, totalCents } = body.snapshot;
     const data = {
-      version,
+      totalCents,
       idempotencyKey: "press-0001-abcd",
       payment: "success",
     };
@@ -322,7 +322,6 @@ test.describe("checkout API @desktop", () => {
     const dup = await request.post(`/api/sessions/${id}/complete`, {
       data: {
         ...data,
-        version: replay.snapshot.version,
         idempotencyKey: "press-0002-abcd",
       },
     });
@@ -331,7 +330,7 @@ test.describe("checkout API @desktop", () => {
     expect(await availableOf(request, ticket.id)).toBe(4);
   });
 
-  test("a stale version is a 409 carrying the current snapshot", async ({
+  test("paying past an unaccepted price change is a 409 carrying the current snapshot", async ({
     request,
   }) => {
     const ticket = await newTicket(request, { priceCents: 7000 });
@@ -341,14 +340,14 @@ test.describe("checkout API @desktop", () => {
       `/api/sessions/${body.snapshot.id}/complete`,
       {
         data: {
-          version: body.snapshot.version,
+          totalCents: body.snapshot.totalCents,
           idempotencyKey: "stale-key-0001",
         },
       },
     );
     expect(response.status()).toBe(409);
     const json = await response.json();
-    expect(json.code).toBe("version_conflict");
+    expect(json.code).toBe("price_not_acknowledged");
     expect(json.snapshot.status).toBe("price_changed");
     expect(json.snapshot.priceChanges[0]).toMatchObject({
       ticketId: ticket.id,

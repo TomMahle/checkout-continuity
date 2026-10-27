@@ -66,6 +66,8 @@ export interface Problem {
 const PROBLEM_TEXT: Record<string, string> = {
   version_conflict:
     "This checkout changed while you were looking at it. Check it over, then try again.",
+  total_changed:
+    "The total changed since you last looked. Check the new total, then pay again.",
   network_error:
     "Can't reach the server. Nothing was charged. Tap again to retry: it's the same payment request, so you can't be charged twice.",
 };

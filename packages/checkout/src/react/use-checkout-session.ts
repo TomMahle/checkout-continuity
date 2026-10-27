@@ -151,7 +151,7 @@ export function useCheckoutSession(options: CheckoutSessionOptions) {
     setBusy(payment);
     setProblem(null);
     const result = await client.complete(id, {
-      version: snapshot.version,
+      totalCents: snapshot.totalCents,
       idempotencyKey: payKey.current,
       payment,
       surface,
