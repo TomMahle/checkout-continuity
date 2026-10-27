@@ -310,7 +310,10 @@ and data:
 | `duplicate_blocked`                               | A second press was refused or replayed (reason in data)                                                                                          |
 
 To measure whether this actually helps, I'd randomize **per user** (not per
-session or device, or one fan could see both arms) into control (no resume
+session or device, or one fan could see both arms... but also, _this is hard_
+unless users have to log in before cart since per-user across devices would
+otherwise require stateful logic about logged-out ids and logged-in users 
+_ask me how I know_ :D ) into control (no resume
 link / session is device-bound) and treatment, and attach the `arm` to every
 event. The primary metric is checkout conversion for sessions that were
 **cross-device** (`session_resumed.cross_device`) versus single-device, in
