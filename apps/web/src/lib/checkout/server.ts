@@ -16,20 +16,32 @@ import type { ZodType } from "zod";
 /** Demo catalog. Plenty of stock except the last one, for sold-out demos. */
 export const SEED_TICKETS: Ticket[] = [
   {
-    id: "neon-harbor",
-    eventName: "Neon Harbor, Friday GA",
+    id: "egg-festival",
+    eventName: "Egg Festival",
     priceCents: 8500,
     available: 500,
   },
   {
-    id: "midnight-choir",
-    eventName: "Midnight Choir, Orchestra",
+    id: "stardew-valley-fair",
+    eventName: "Stardew Valley Fair",
     priceCents: 12000,
     available: 200,
   },
   {
-    id: "low-tide",
-    eventName: "Low Tide Festival, Day Pass",
+    id: "trout-derby",
+    eventName: "Trout Derby",
+    priceCents: 4500,
+    available: 300,
+  },
+  {
+    id: "feast-of-the-winter-star",
+    eventName: "Feast of the Winter Star",
+    priceCents: 9500,
+    available: 150,
+  },
+  {
+    id: "moonlight-jellies",
+    eventName: "Dance of the Moonlight Jellies",
     priceCents: 6400,
     available: 4,
   },
