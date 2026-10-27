@@ -293,6 +293,8 @@ browser. The page keeps its `notFound()` as a fallback.
 
 ## Instrumentation
 
+(This is not necessary, but looks useful enough for debugging that I'll keep it around)
+
 The in-memory event log (`/api/admin/state`, shown on the admin page) records
 the funnel, each event with session id, surface (`web`, `mobile_web`, `app`),
 and data:
