@@ -88,7 +88,7 @@ export const acknowledgePriceBodySchema = z.object({
 
 export const completeBodySchema = z.object({
   version: z.number().int().positive(),
-  /** One per Pay press: reused on retries, fresh after a definitive result. */
+  /** One per payment attempt: reused on retries, fresh after a definitive result. */
   idempotencyKey: z.string().min(8).max(128),
   payment: paymentBehaviourSchema.default("success"),
   surface: surfaceSchema.optional(),

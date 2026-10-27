@@ -1,14 +1,16 @@
 import "server-only";
 import {
   createAdjustableClock,
-  createCheckoutStore,
   createStubPayment,
   errorStatus,
-  type CheckoutStore,
   type ErrorCode,
-  type Result,
   type Ticket,
 } from "@continuity/checkout";
+import {
+  createCheckoutStore,
+  type CheckoutStore,
+  type Result,
+} from "@continuity/checkout/store";
 import type { ZodType } from "zod";
 
 /** Demo catalog. Plenty of stock except the last one, for sold-out demos. */
