@@ -315,13 +315,9 @@ unless users have to log in before cart since per-user across devices would
 otherwise require stateful logic about logged-out ids and logged-in users 
 _ask me how I know_ :D ) into control (no resume
 link / session is device-bound) and treatment, and attach the `arm` to every
-event. The primary metric is checkout conversion for sessions that were
-**cross-device** (`session_resumed.cross_device`) versus single-device, in
-both arms, plus completion rate after `price_change_shown` and after
-`expired_seen` (does Start over recover them?). Guardrails: duplicate orders
+event. The primary metric is checkout conversion per user. Guardrails: duplicate orders
 (must be zero), time-to-pay, `payment_failed` rate, and `duplicate_blocked`
-volume (a spike means a UX problem, not an attack). Event schemas are the
-`AnalyticsEvent` type; `Analytics` is an interface so a real pipeline swaps in.
+volume (a spike means a UX problem, sync issue, etc).
 
 ## API
 
@@ -390,7 +386,7 @@ test levers.
 - Persist sessions (Postgres/Redis) with row-level compare-and-set, and a
   sweeper plus pub/sub for multi-instance SSE.
 - Real payment: a PaymentIntent per session, webhooks to settle `completing`
-  (rather than a timeout + refund), and 3-D Secure.
+  (rather than a timeout + refund).
 - Auth and ownership: bind a session to a signed-in fan (or a signed handoff
   token in the QR code), so a leaked URL isn't a shared cart.
 - Hold extension _policy_ (e.g. one extension when payment starts) decided
@@ -398,14 +394,12 @@ test levers.
 - Universal links (iOS) and App Links (Android): one
   `https://<host>/checkout/<id>` URL that opens the app when it's installed and
   the web page otherwise, so a single QR code serves both surfaces and the
-  custom scheme and Expo Go links go away. Needs the
-  `apple-app-site-association` and `assetlinks.json` files served by the web
-  app and a signed build with associated domains.
+  custom scheme and Expo Go links go away.
 - Push the handoff: "continue on your phone" by notification.
 - Multi-item carts, per-item quantity limits, and partial-availability
   handling when one item's price or stock changes.
 - Real analytics sink with the per-user A/B assignment, and a dashboard for
   cross-device conversion.
 - Mobile: SSE (or a push channel), and component/E2E tests (Maestro/Detox).
-  The app was checked by hand in Expo Go on the iOS Simulator (resume, price
-  change, slow payment, expiry), not on a device or in a standalone build.
+  The app was checked by hand in Expo Go on the iOS Simulator and android phone
+  (resume, price change, slow payment, expiry), not on a device with a standalone build.
