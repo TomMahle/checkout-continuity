@@ -364,6 +364,19 @@ test.describe("checkout API @desktop", () => {
     expect((await bad.json()).code).toBe("bad_request");
     expect((await request.get("/api/sessions/cs_nope")).status()).toBe(404);
   });
+
+  test("an unknown session page is a real 404, rendered on the server", async ({
+    page,
+  }) => {
+    const errors: string[] = [];
+    page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+    const response = await page.goto("/checkout/cs_nope");
+    expect(response?.status()).toBe(404);
+    expect(await response?.text()).not.toContain("__next_error__");
+    await expect(page.locator("main h1")).toHaveText(/couldn.t find/);
+    // A client-rendered fallback re-creates the layout's <script> and warns.
+    expect(errors.filter((e) => e.includes("script tag"))).toEqual([]);
+  });
 });
 
 test.describe("accessibility @desktop", () => {

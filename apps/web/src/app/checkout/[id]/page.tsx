@@ -15,10 +15,13 @@ export const metadata: Metadata = { title: "Checkout" };
 const APP_SCHEME = "continuity";
 
 /*
- * Like the park pages, this route opts out of the "instant navigation" check:
- * it reads `params` and per-request data, and calling notFound() inside a
- * <Suspense> would send a 200 "soft 404" for unknown sessions. Rendering
- * here is one in-memory lookup, so there is no slow data worth streaming.
+ * This route opts out of the "instant navigation" check (a dev-time
+ * validation only): it reads `params` and per-request data, and rendering is
+ * one in-memory lookup, so there is no slow data worth a loading state.
+ *
+ * Unknown sessions get their 404 from src/proxy.ts. By the time this page
+ * runs, the root layout's static shell is already streaming with a 200, so
+ * the notFound() below is only a fallback (a soft 404 with noindex).
  */
 export const instant = false;
 

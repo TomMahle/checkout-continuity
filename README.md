@@ -280,10 +280,11 @@ Things deliberately _not_ done at render time: opening the `EventSource`
 (after mount), reading `Date.now()` or `performance.now()` during render
 (hydration mismatches), and trusting the SSR timer (anchored by a refetch).
 
-The route sets `instant = false`, as the park pages do: it reads `params` at
-request time and calls `notFound()`, and doing that inside `<Suspense>` would
-make unknown ids a 200 "soft 404". The render is one in-memory lookup, so
-there is nothing slow to stream.
+Unknown session ids get a real `404` from `src/proxy.ts`, before any
+rendering. With Cache Components the root layout is a static shell that starts
+streaming (committing to a `200`) before the page runs, so a `notFound()` in
+the page could only send a "soft 404" whose layout React then rebuilds in the
+browser. The page keeps its `notFound()` as a fallback.
 
 ## Instrumentation
 
