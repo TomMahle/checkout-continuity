@@ -8,6 +8,7 @@ import { renderSVG } from "uqr";
 import { CheckoutLive } from "@/components/checkout/checkout-live";
 import { CopyButton } from "@/components/checkout/copy-button";
 import { getCheckoutStore } from "@/lib/checkout/server";
+import { shareableOrigin } from "@/lib/lan";
 
 export const metadata: Metadata = { title: "Checkout" };
 
@@ -45,13 +46,14 @@ export default async function CheckoutSession({
 
   const origin =
     process.env.CHECKOUT_PUBLIC_ORIGIN ??
-    `${requestHeaders.get("x-forwarded-proto") ?? "http"}://${requestHeaders.get("host")}`;
+    shareableOrigin(
+      `${requestHeaders.get("x-forwarded-proto") ?? "http"}://${requestHeaders.get("host")}`,
+    );
   const webUrl = `${origin}/checkout/${id}`;
   const deepLink = `${APP_SCHEME}://checkout/${id}`;
   // Expo Go doesn't register the app's scheme; it opens routes as
   // exp://<metro host>/--/<path>. In development, assume Metro runs on this
-  // machine on its default port, reached at the same hostname as this page
-  // (so a page opened via the LAN IP yields a link a phone can use).
+  // machine on its default port, at the same network address as the links.
   const expoGoOrigin =
     process.env.CHECKOUT_EXPO_GO_ORIGIN ??
     (process.env.NODE_ENV === "production"

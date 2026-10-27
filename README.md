@@ -48,14 +48,13 @@ pnpm install
 # a longer hold is easier to demo:
 CHECKOUT_HOLD_TTL_MS=60000 pnpm dev
 
-# Mobile. The phone must reach the web server, so use your computer's LAN IP:
-EXPO_PUBLIC_API_URL=http://192.168.1.20:3000 pnpm dev:mobile
-# Android emulator: EXPO_PUBLIC_API_URL=http://10.0.2.2:3000
-# Also set CHECKOUT_PUBLIC_ORIGIN=http://192.168.1.20:3000 for the web server so
-# the "Open on the web" QR code points at the LAN, not at localhost.
+# Mobile. The app reaches the web server at Metro's host (your computer's
+# network address) on port 3000; EXPO_PUBLIC_API_URL overrides it.
+pnpm dev:mobile
+# QR codes and links on the checkout page use your computer's network address
+# even when the page is open at localhost, so a phone can follow them.
+# CHECKOUT_PUBLIC_ORIGIN overrides it (e.g. behind a tunnel).
 # In Expo Go, scan the checkout page's first QR code ("Scan with Expo Go").
-# In development it points at exp://<the page's hostname>:8081, so open the web
-# page via the LAN IP for a phone, or localhost for the iOS Simulator.
 
 # Tests
 pnpm --filter @continuity/checkout test:run        # unit tests
