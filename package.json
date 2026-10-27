@@ -3,7 +3,9 @@
   "private": true,
   "scripts": {
     "dev": "turbo run dev --filter=@continuity/web",
+    "start": "pnpm dev",
     "dev:mobile": "pnpm --filter @continuity/mobile start",
+    "start:mobile": "pnpm dev:mobile",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
