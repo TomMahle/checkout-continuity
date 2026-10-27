@@ -595,3 +595,30 @@ describe("subscriptions and reset", () => {
     expect(clock.offsetMs()).toBe(0);
   });
 });
+
+describe("ids", () => {
+  it("mints session, order and ticket ids with the injected generator", async () => {
+    let n = 0;
+    const store = createCheckoutStore({
+      clock: createAdjustableClock(() => 1_000_000),
+      newId: (kind) => `${kind}-${++n}`,
+      tickets: [
+        { id: "a", eventName: "Alpha", priceCents: 8500, available: 3 },
+      ],
+    });
+    const s = create(store);
+    expect(s.id).toBe("session-1");
+    expect(await pay(store, s)).toMatchObject({ orderId: "order-2" });
+    expect(
+      store.addTicket({ eventName: "Beta", priceCents: 100, available: 1 }).id,
+    ).toBe("ticket-3");
+  });
+
+  it("defaults to prefixed random ids", () => {
+    const { store } = setup();
+    expect(create(store).id).toMatch(/^cs_[0-9a-f]{16}$/);
+    expect(
+      store.addTicket({ eventName: "Beta", priceCents: 100, available: 1 }).id,
+    ).toMatch(/^t_[0-9a-f]{8}$/);
+  });
+});

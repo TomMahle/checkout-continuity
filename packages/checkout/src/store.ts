@@ -6,6 +6,7 @@ import {
 } from "./analytics";
 import { createAdjustableClock, type AdjustableClock } from "./clock";
 import { createStubPayment, type PaymentGateway } from "./payment";
+import { randomHex } from "./random";
 import type {
   CartItem,
   ErrorCode,
@@ -98,6 +99,23 @@ export interface StoreOptions {
   payment?: PaymentGateway;
   analytics?: MemoryAnalytics;
   tickets?: Ticket[];
+  /** Mints session, order and ticket ids. Defaults to `randomId`. */
+  newId?: (kind: IdKind) => string;
+}
+
+export type IdKind = "session" | "order" | "ticket";
+
+/** A prefix plus some random hex: `cs_…`, `ord_…`, `t_…`. */
+export function randomId(kind: IdKind): string {
+  const hex = randomHex();
+  switch (kind) {
+    case "session":
+      return `cs_${hex.slice(0, 16)}`;
+    case "order":
+      return `ord_${hex.slice(0, 10)}`;
+    case "ticket":
+      return `t_${hex.slice(0, 8)}`;
+  }
 }
 
 export type CheckoutStore = ReturnType<typeof createCheckoutStore>;
@@ -113,6 +131,7 @@ export function createCheckoutStore(options: StoreOptions = {}) {
   const analytics: MemoryAnalytics =
     options.analytics ?? createMemoryAnalytics();
   const initialTickets = options.tickets ?? [];
+  const newId = options.newId ?? randomId;
   let ttlMs = options.ttlMs ?? DEFAULT_HOLD_TTL_MS;
   const completingTimeoutMs =
     options.completingTimeoutMs ?? DEFAULT_COMPLETING_TIMEOUT_MS;
@@ -371,7 +390,7 @@ export function createCheckoutStore(options: StoreOptions = {}) {
       }
       const now = clock.now();
       const s: Session = {
-        id: `cs_${crypto.randomUUID().replaceAll("-", "").slice(0, 16)}`,
+        id: newId("session"),
         items: input.ticketIds.map((id) => {
           const t = tickets.get(id)!;
           t.available -= 1;
@@ -556,7 +575,7 @@ export function createCheckoutStore(options: StoreOptions = {}) {
     },
 
     addTicket(ticket: Omit<Ticket, "id"> & { id?: string }): Ticket {
-      const id = ticket.id ?? `t_${crypto.randomUUID().slice(0, 8)}`;
+      const id = ticket.id ?? newId("ticket");
       const t = { ...ticket, id };
       tickets.set(id, t);
       emit();
@@ -647,7 +666,7 @@ export function createCheckoutStore(options: StoreOptions = {}) {
     }
 
     if (charge.ok) {
-      const orderId = `ord_${crypto.randomUUID().replaceAll("-", "").slice(0, 10)}`;
+      const orderId = newId("order");
       s.status = "completed";
       s.orderId = orderId;
       s.completing = undefined;
