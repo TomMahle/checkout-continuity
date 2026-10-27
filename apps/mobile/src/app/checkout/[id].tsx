@@ -1,5 +1,4 @@
 import {
-  PAY_CUTOFF_MS,
   formatCents,
   formatRemaining,
   type SessionSnapshot,
@@ -74,11 +73,7 @@ export default function CheckoutScreen() {
     );
   }
 
-  const canPay =
-    busy === null &&
-    (snapshot.status === "active" || snapshot.status === "payment_failed") &&
-    remaining !== null &&
-    remaining > PAY_CUTOFF_MS;
+  const { canPay } = session;
 
   const card = {
     backgroundColor: colors.card,
@@ -95,7 +90,7 @@ export default function CheckoutScreen() {
       <Stack.Screen options={{ title: "Checkout" }} />
 
       <StatusBanner snapshot={snapshot} />
-      {snapshot.priceDrops.length > 0 && session.open && (
+      {snapshot.priceDrops.length > 0 && session.isOpen && (
         <Banner tone="info" title="Good news: a price dropped">
           {snapshot.priceDrops
             .map(
@@ -149,7 +144,7 @@ export default function CheckoutScreen() {
         <Text style={{ color: colors.text, opacity: 0.7 }}>
           Status: {snapshot.status.replace("_", " ")}
         </Text>
-        {session.open && remaining !== null && (
+        {session.isOpen && remaining !== null && (
           <Text style={{ color: colors.text, opacity: 0.7 }}>
             {session.timeIsUp
               ? "Time is up. Confirming with the server…"
@@ -172,7 +167,7 @@ export default function CheckoutScreen() {
         </Text>
       )}
 
-      {(session.open || snapshot.status === "completing") &&
+      {(session.isOpen || snapshot.status === "completing") &&
         snapshot.status !== "expired" && (
           <View style={styles.pay}>
             <Text style={[styles.bold, { color: colors.text }]}>Pay</Text>

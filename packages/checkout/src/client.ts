@@ -7,6 +7,7 @@ import {
   type SessionSnapshot,
   type Surface,
 } from "./schema";
+import { watchEvents } from "./sse";
 
 /*
  * One API client for every surface (web island, Expo app), so they interpret
@@ -30,6 +31,11 @@ export interface ClientOptions {
   /** "" for same-origin web; the LAN URL in the Expo app. */
   baseUrl?: string;
   fetch?: typeof fetch;
+  /**
+   * For `watchSession`: a fetch whose response body streams. Defaults to
+   * `fetch`; React Native's doesn't stream, so the app passes `expo/fetch`.
+   */
+  streamFetch?: typeof fetch;
   /** Monotonic ms. Defaults to `performance.now()`. */
   perfNow?: () => number;
 }
@@ -40,6 +46,7 @@ export function createCheckoutClient(options: ClientOptions = {}) {
   const baseUrl = options.baseUrl ?? "";
   const doFetch = options.fetch ?? ((...args) => fetch(...args));
   const perfNow = options.perfNow ?? (() => performance.now());
+  const streamFetch = options.streamFetch ?? doFetch;
 
   async function call<T extends object = object>(
     path: string,
@@ -110,6 +117,22 @@ export function createCheckoutClient(options: ClientOptions = {}) {
       call<{ orderId: string; replayed: boolean }>(`${session(id)}/complete`, {
         method: "POST",
         body,
+      }),
+
+    /**
+     * Live snapshots over server-sent events: one on connect, then one per
+     * change. Reconnects until stopped. These carry no clock anchor.
+     */
+    watchSession: (id: string, onSnapshot: (s: SessionSnapshot) => void) =>
+      watchEvents({
+        url: `${baseUrl}${session(id)}/events`,
+        fetch: streamFetch,
+        onData(data) {
+          try {
+            const parsed = sessionSnapshotSchema.safeParse(JSON.parse(data));
+            if (parsed.success) onSnapshot(parsed.data);
+          } catch {}
+        },
       }),
   };
 }

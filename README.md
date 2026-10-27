@@ -178,14 +178,18 @@ Staying current after the first load:
 
 | Trigger                                | Web                                                    | Mobile                      |
 | -------------------------------------- | ------------------------------------------------------ | --------------------------- |
-| Other device changes the session       | Server-sent events (`/events`)                         | 2s polling                  |
+| Other device changes the session       | Server-sent events (`/events`)                         | Same                        |
 | Tab / app comes back to the foreground | `visibilitychange` and `pageshow` refetch              | `AppState` `active` refetch |
 | Countdown reaches zero                 | Refetch (retry every 1s) - never decides expiry itself | Same                        |
 | Any 409                                | Render the snapshot that came with it                  | Same                        |
 
-Mobile polls because React Native has no `EventSource` and a polyfill is a
-dependency for a screen that is open for seconds; the foreground refetch
-matters more than the poll interval.
+Both surfaces run the same hook, `useCheckoutSession` from
+`@continuity/checkout/react`; each only supplies its foreground signal. Server-
+sent events are read over `fetch` rather than `EventSource`, because React
+Native has none: a fetch whose body streams is enough (the browser's own on
+the web, `expo/fetch` in the app), and the reader reconnects with backoff. A
+suspended app always loses its stream, so coming back to the foreground both
+refetches and reconnects at once.
 
 ### The countdown clock
 
@@ -276,7 +280,7 @@ one says so). Only these ship as client JS: the live panel and the copy
 buttons. Starting and restarting a checkout use a server action on a plain
 `<form>`, so **Buy** and **Start over** work before hydration too.
 
-Things deliberately _not_ done at render time: opening the `EventSource`
+Things deliberately _not_ done at render time: opening the event stream
 (after mount), reading `Date.now()` or `performance.now()` during render
 (hydration mismatches), and trusting the SSR timer (anchored by a refetch).
 
@@ -361,8 +365,9 @@ test levers.
 - **Price changes are detected on read**, not pushed from the catalog. Simple
   and always consistent with what the server will enforce; SSE pushes the
   result to open devices within a second.
-- **SSE on web, polling on mobile** keeps each platform on its native
-  grain; the cost is two code paths for staying fresh.
+- **One fetch-based SSE reader for both platforms** instead of native
+  `EventSource` on the web: one code path that both exercise, at the cost of
+  owning reconnection ourselves.
 - **The client component is server-rendered** rather than splitting a
   separate static "summary" from the island: one set of markup that can't drift,
   at the cost of shipping that markup's logic to the client.

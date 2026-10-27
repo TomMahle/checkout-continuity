@@ -1,4 +1,5 @@
 import { createCheckoutClient } from "@continuity/checkout";
+import { fetch as expoFetch } from "expo/fetch";
 
 /**
  * The web app's origin. `localhost` means the phone itself, so on a device
@@ -9,5 +10,12 @@ import { createCheckoutClient } from "@continuity/checkout";
 export const API_URL =
   process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
 
-/** The same client the web island uses: same parsing, same clock anchoring. */
-export const checkoutClient = createCheckoutClient({ baseUrl: API_URL });
+/**
+ * The same client the web island uses: same parsing, same clock anchoring.
+ * React Native's own fetch can't stream a response body, so server-sent
+ * events go through `expo/fetch`, which can.
+ */
+export const checkoutClient = createCheckoutClient({
+  baseUrl: API_URL,
+  streamFetch: expoFetch as typeof fetch,
+});

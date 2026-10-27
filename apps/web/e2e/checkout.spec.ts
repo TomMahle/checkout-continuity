@@ -209,6 +209,23 @@ test.describe("across devices @desktop", () => {
     await expect(banner(page)).toContainText("Order confirmed", WAIT);
   });
 
+  test("a decline followed by expiry shows only the expiry, not a stale 'still held'", async ({
+    page,
+    request,
+  }) => {
+    const ticket = await newTicket(request);
+    const { body } = await createSession(request, ticket.id);
+    await page.goto(`/checkout/${body.snapshot.id}`);
+    await expect(declineButton(page)).toBeEnabled(WAIT);
+    await declineButton(page).click();
+    await expect(banner(page)).toContainText("Payment failed", WAIT);
+    // The status banner says it; a second "declined" banner would repeat it.
+    await expect(banner(page)).not.toContainText("Heads up");
+    await request.post(`/api/admin/sessions/${body.snapshot.id}/expire`);
+    await expect(banner(page)).toContainText("This checkout has expired", WAIT);
+    await expect(banner(page)).not.toContainText("still");
+  });
+
   test("the first response already contains the order, prices and hold time (no JavaScript)", async ({
     browser,
     request,
