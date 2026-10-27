@@ -1,5 +1,8 @@
 # Checkout continuity
 
+[![CI](https://github.com/TomMahle/checkout-continuity/actions/workflows/ci.yml/badge.svg)](https://github.com/TomMahle/checkout-continuity/actions/workflows/ci.yml)
+[![Unit tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FTomMahle%2Fcheckout-continuity%2Fbadges%2Funit-tests.json)](packages/checkout/src)
+
 Fans switch devices mid-checkout: they start on a laptop, then finish on a
 phone. This prototype makes one checkout **session** that either device can
 pick up, without double orders, without holding stock forever, and without
@@ -15,14 +18,14 @@ hiding a price increase.
 
 ## What was built
 
-| Piece      | Where                                   | Notes                                                                                                   |
-| ---------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Domain     | `packages/checkout/src`                 | State machine, schemas, countdown math, API client. Pure TypeScript, in-memory, injected clock/payment. |
-| API        | `apps/web/src/app/api`                  | Route handlers: thin adapters (parse with zod, call the store, return the result).                      |
-| Web        | `apps/web/src/app/checkout`             | `/checkout` (tickets), `/checkout/[id]` (the session), `/checkout/admin` (levers and the event log).    |
-| Mobile     | `apps/mobile/src/app/checkout/[id].tsx` | Opens from `continuity://checkout/<id>`. Same session, same API client.                                 |
-| Unit tests | `packages/checkout/src/*.test.ts`       | 43 tests: every transition, lazy expiry, version conflicts, idempotency, races, timeouts.               |
-| E2E tests  | `apps/web/e2e/checkout.spec.ts`         | Desktop + phone contexts, admin edits, slow payment, API races, no-JS first response, axe.              |
+| Piece      | Where                                   | Notes                                                                                                                                                   |
+| ---------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Domain     | `packages/checkout/src`                 | State machine (server-only, `@continuity/checkout/store`), schemas, countdown math, API client. Pure TypeScript, in-memory, injected clock/payment/ids. |
+| API        | `apps/web/src/app/api`                  | Route handlers: thin adapters (parse with zod, call the store, return the result).                                                                      |
+| Web        | `apps/web/src/app/checkout`             | `/checkout` (tickets), `/checkout/[id]` (the session), `/checkout/admin` (levers and the event log).                                                    |
+| Mobile     | `apps/mobile/src/app/checkout/[id].tsx` | Opens from `continuity://checkout/<id>`. Same session, same API client.                                                                                 |
+| Unit tests | `packages/checkout/src/*.test.ts`       | Every transition, lazy expiry, version conflicts, idempotency, races, timeouts.                                                                         |
+| E2E tests  | `apps/web/e2e/checkout.spec.ts`         | Desktop + phone contexts, admin edits, slow payment, API races, no-JS first response, axe.                                                              |
 
 Payment, inventory and the catalog are stubs behind small interfaces
 (`PaymentGateway`, `Analytics`, the store's catalog methods). Everything is
@@ -55,7 +58,7 @@ EXPO_PUBLIC_API_URL=http://192.168.1.20:3000 pnpm dev:mobile
 # page via the LAN IP for a phone, or localhost for the iOS Simulator.
 
 # Tests
-pnpm --filter @continuity/checkout test:run        # 43 unit tests
+pnpm --filter @continuity/checkout test:run        # unit tests
 pnpm --filter @continuity/web exec playwright install chromium   # once
 pnpm test:e2e                                    # builds the web app, runs all browser tests
 pnpm check                                       # types, lint, unit tests, formatting
@@ -241,18 +244,18 @@ each quote with the live catalog, **per ticket**:
 
 Two different guards, doing two different jobs:
 
-| Guard               | Protects against                                             | How                                                                                                                                                                                                |
-| ------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Idempotency key** | The same press sent twice (retry, double tap, flaky network) | One key per Pay press, reused on retries, replaced after any definitive answer. The server stores the result per key and replays it; a repeat while the first is in flight joins the same attempt. |
-| **Compare-and-set** | Two different presses (laptop and phone)                     | `active -> completing` is checked and set with no `await` between, so exactly one request wins. The other gets a 409 (`payment_in_progress` / `already_completed`) with the snapshot.              |
+| Guard               | Protects against                                             | How                                                                                                                                                                                                                                                   |
+| ------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Idempotency key** | The same press sent twice (retry, double tap, flaky network) | One key per payment attempt: minted on the first Pay press, reused by every press and retry, replaced after any definitive answer. The server stores the result per key and replays it; a repeat while the first is in flight joins the same attempt. |
+| **Compare-and-set** | Two different presses (laptop and phone)                     | `active -> completing` is checked and set with no `await` between, so exactly one request wins. The other gets a 409 (`payment_in_progress` / `already_completed`) with the snapshot.                                                                 |
 
 The key alone wouldn't stop the second device (different key); the CAS alone
 wouldn't make a network retry safe (the retry would look like a second
 device). Together: a retried press returns the original order, and a second
 device's press is refused and then sees the winner's result.
 
-A payment _failure_ is also stored under its key, so retrying the same press
-doesn't hammer the card; a new press gets a new key.
+A payment _failure_ is also stored under its key, so retrying the same attempt
+doesn't hammer the card; a new attempt gets a new key.
 
 ## What renders before hydration
 
