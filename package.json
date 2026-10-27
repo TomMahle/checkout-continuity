@@ -14,6 +14,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "turbo run typecheck lint test:run && pnpm format:check",
+    "check:e2e": "pnpm check && pnpm test:e2e",
     "prepare": "husky"
   },
   "devDependencies": {
