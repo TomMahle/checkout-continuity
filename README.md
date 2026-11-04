@@ -312,7 +312,7 @@ and data:
 To measure whether this actually helps, I'd randomize **per user** (not per
 session or device, or one fan could see both arms... but also, _this is hard_
 unless users have to log in before cart since per-user across devices would
-otherwise require stateful logic about logged-out ids and logged-in users 
+otherwise require stateful logic about logged-out ids and logged-in users
 _ask me how I know_ :D ) into control (no resume
 link / session is device-bound) and treatment, and attach the `arm` to every
 event. The primary metric is checkout conversion per user. Guardrails: duplicate orders
