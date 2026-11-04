@@ -8,6 +8,8 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -16,6 +18,21 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Formatting heals itself rather than failing the build. A same-repo PR
+      # only formats its checkout, as the push run for that branch commits the
+      # fix. A fork PR can't be pushed to, so `pnpm check` still fails it.
+      - name: Apply prettier
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        run: pnpm format
+      # Pushes made with GITHUB_TOKEN don't trigger workflows, so this can't loop.
+      - name: Push prettier fixes
+        if: github.event_name == 'push'
+        run: |
+          git diff --quiet && exit 0
+          git -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -qam "Apply prettier to ${GITHUB_SHA::7}" --no-verify
+          git push -q origin "HEAD:${GITHUB_REF}"
       - run: pnpm check
       - run: pnpm build
 
