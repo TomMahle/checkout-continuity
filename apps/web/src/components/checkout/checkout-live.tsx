@@ -23,7 +23,13 @@ export function CheckoutLive({
   const session = useWebCheckoutSession(initial, surface);
   const { status } = session.snapshot;
   if (session.gone) {
-    return <GoneBanner ticketId={session.snapshot.items[0]?.ticketId} />;
+    const item = session.snapshot.items[0];
+    return (
+      <GoneBanner
+        ticketId={item?.ticketId}
+        agreedPriceCents={item?.quotedPriceCents}
+      />
+    );
   }
   return (
     <div className="flex flex-col gap-5">

@@ -60,6 +60,11 @@ export function StatusBanners({ session }: { session: WebCheckoutSession }) {
               name="ticketId"
               value={snapshot.items[0]?.ticketId}
             />
+            <input
+              type="hidden"
+              name="agreedPriceCents"
+              value={snapshot.items[0]?.quotedPriceCents}
+            />
             <button type="submit" className={primaryButton}>
               Start over
             </button>
@@ -127,7 +132,13 @@ export function StatusBanners({ session }: { session: WebCheckoutSession }) {
 }
 
 /** The server no longer knows this session (say, it restarted). */
-export function GoneBanner({ ticketId }: { ticketId?: string }) {
+export function GoneBanner({
+  ticketId,
+  agreedPriceCents,
+}: {
+  ticketId?: string;
+  agreedPriceCents?: number;
+}) {
   return (
     <div role="status">
       <Banner kind="danger" title="This checkout is gone">
@@ -136,6 +147,11 @@ export function GoneBanner({ ticketId }: { ticketId?: string }) {
         {ticketId && (
           <form action={startCheckout} className="mt-3">
             <input type="hidden" name="ticketId" value={ticketId} />
+            <input
+              type="hidden"
+              name="agreedPriceCents"
+              value={agreedPriceCents}
+            />
             <button type="submit" className={primaryButton}>
               Start over
             </button>

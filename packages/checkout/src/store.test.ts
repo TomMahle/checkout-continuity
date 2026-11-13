@@ -284,6 +284,123 @@ describe("price changes", () => {
   });
 });
 
+describe("starting over", () => {
+  function startOver(store: CheckoutStore, from: SessionSnapshot) {
+    const result = store.createSession({
+      ticketIds: from.items.map((i) => i.ticketId),
+      surface: "web",
+      agreedPriceCents: Object.fromEntries(
+        from.items.map((i) => [i.ticketId, i.quotedPriceCents]),
+      ),
+    });
+    if (!result.ok) throw new Error(result.message);
+    return result.snapshot;
+  }
+
+  it("asks again about a rise the fan never accepted", async () => {
+    const { store } = setup();
+    const s = create(store);
+    store.setPrice("a", 9500);
+    expect(get(store, s.id).status).toBe("price_changed");
+    store.expireNow(s.id);
+
+    const next = startOver(store, get(store, s.id));
+    expect(next).toMatchObject({
+      status: "price_changed",
+      totalCents: 8500,
+      priceChanges: [
+        {
+          ticketId: "a",
+          eventName: "Alpha",
+          quotedPriceCents: 8500,
+          currentPriceCents: 9500,
+        },
+      ],
+    });
+    expect(await pay(store, next)).toMatchObject({
+      ok: false,
+      code: "price_not_acknowledged",
+    });
+    const acked = store.acknowledgePrice(next.id, next.version);
+    expect(acked.ok && acked.snapshot).toMatchObject({
+      status: "active",
+      totalCents: 9500,
+    });
+  });
+
+  it("asks about a rise that happened after the hold expired", () => {
+    const { store } = setup();
+    const s = create(store);
+    store.expireNow(s.id);
+    store.setPrice("a", 9500);
+    expect(startOver(store, get(store, s.id))).toMatchObject({
+      status: "price_changed",
+      totalCents: 8500,
+    });
+  });
+
+  it("keeps a price the fan already accepted", () => {
+    const { store } = setup();
+    const s = create(store);
+    store.setPrice("a", 9500);
+    store.acknowledgePrice(s.id, get(store, s.id).version);
+    store.expireNow(s.id);
+    expect(startOver(store, get(store, s.id))).toMatchObject({
+      status: "active",
+      version: 1,
+      totalCents: 9500,
+    });
+  });
+
+  it("applies a drop since then with a notice", () => {
+    const { store } = setup();
+    const s = create(store);
+    store.expireNow(s.id);
+    store.setPrice("a", 7000);
+    expect(startOver(store, get(store, s.id))).toMatchObject({
+      status: "active",
+      totalCents: 7000,
+      priceDrops: [{ quotedPriceCents: 8500, currentPriceCents: 7000 }],
+    });
+  });
+
+  it("can't lower the price: a quote below the catalog must be accepted", async () => {
+    const { store } = setup();
+    const result = store.createSession({
+      ticketIds: ["a"],
+      surface: "web",
+      agreedPriceCents: { a: 1 },
+    });
+    if (!result.ok) throw new Error(result.message);
+    expect(result.snapshot).toMatchObject({
+      status: "price_changed",
+      totalCents: 1,
+    });
+    expect(await pay(store, result.snapshot)).toMatchObject({
+      ok: false,
+      code: "price_not_acknowledged",
+    });
+    const acked = store.acknowledgePrice(
+      result.snapshot.id,
+      result.snapshot.version,
+    );
+    expect(acked.ok && acked.snapshot.totalCents).toBe(8500);
+  });
+
+  it("works after the old session is forgotten", () => {
+    const { store } = setup();
+    const s = create(store);
+    store.setPrice("a", 9500);
+    const last = get(store, s.id);
+    store.reset(); // a restarted server forgets every session
+    store.setPrice("a", 9500);
+    expect(startOver(store, last)).toMatchObject({
+      status: "price_changed",
+      totalCents: 8500,
+    });
+  });
+});
+
 describe("stale views", () => {
   it("refuses a total the fan wasn't shown, with the current snapshot", async () => {
     const { store } = setup();

@@ -164,6 +164,35 @@ test.describe("across devices @desktop", () => {
     await phone.context.close();
   });
 
+  test("starting over after an unaccepted price rise asks for the new price again", async ({
+    page,
+    request,
+  }) => {
+    const ticket = await newTicket(request, { priceCents: 7000 });
+    const { body } = await createSession(request, ticket.id);
+    const id = body.snapshot.id;
+    await page.goto(`/checkout/${id}`);
+    await expect(payButton(page)).toBeEnabled(WAIT);
+
+    await setPrice(request, ticket.id, 7500);
+    await expect(status(page)).toHaveText("price changed", WAIT);
+    await request.post(`/api/admin/sessions/${id}/expire`);
+    await expect(banner(page)).toContainText("This checkout has expired", WAIT);
+
+    await page.getByRole("button", { name: "Start over" }).click();
+    await expect(page).not.toHaveURL(new RegExp(id));
+    await expect(status(page)).toHaveText("price changed", WAIT);
+    await expect(banner(page)).toContainText(
+      `${dollars(7000)} → ${dollars(7500)}`,
+    );
+    await expect(payButton(page)).toBeDisabled();
+
+    await page.getByRole("button", { name: "Accept new price" }).click();
+    await expect(status(page)).toHaveText("active", WAIT);
+    await expect(payButton(page)).toHaveText(`Pay ${dollars(7500)}`);
+    await expect(payButton(page)).toBeEnabled();
+  });
+
   test("a slow payment on desktop shows as pending on the phone, which cannot pay, then completes", async ({
     page,
     browser,

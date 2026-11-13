@@ -9,6 +9,9 @@ export async function POST(request: Request) {
     getCheckoutStore().createSession({
       ticketIds: [body.data.ticketId],
       surface: body.data.surface,
+      ...(body.data.agreedPriceCents !== undefined && {
+        agreedPriceCents: { [body.data.ticketId]: body.data.agreedPriceCents },
+      }),
     }),
   );
 }

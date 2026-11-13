@@ -7,14 +7,18 @@ import { getCheckoutStore } from "@/lib/checkout/server";
 
 /**
  * Starts a checkout session and goes to it. A plain form action, so Buy works
- * before (or without) hydration. "Start over" after expiry uses it too.
+ * before (or without) hydration. "Start over" uses it too, sending the price
+ * the fan last agreed to so a rise since then still needs accepting.
  */
 export async function startCheckout(formData: FormData) {
   const ticketId = String(formData.get("ticketId") ?? "");
+  const agreed = Number(formData.get("agreedPriceCents") || NaN);
   const surface = webSurfaceFor((await headers()).get("user-agent") ?? "");
   const result = getCheckoutStore().createSession({
     ticketIds: [ticketId],
     surface,
+    ...(Number.isInteger(agreed) &&
+      agreed >= 0 && { agreedPriceCents: { [ticketId]: agreed } }),
   });
   if (!result.ok) redirect(`/checkout?problem=${result.code}`);
   redirect(`/checkout/${result.snapshot.id}`);

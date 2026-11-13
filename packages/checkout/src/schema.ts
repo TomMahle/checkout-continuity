@@ -79,6 +79,8 @@ export type SessionSnapshot = z.infer<typeof sessionSnapshotSchema>;
 export const createSessionBodySchema = z.object({
   ticketId: z.string().min(1),
   surface: surfaceSchema,
+  /** Starting over: the price last agreed to, which becomes the quote. */
+  agreedPriceCents: z.number().int().nonnegative().optional(),
 });
 
 export const acknowledgePriceBodySchema = z.object({

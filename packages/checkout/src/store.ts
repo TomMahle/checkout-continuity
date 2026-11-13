@@ -380,7 +380,18 @@ export function createCheckoutStore(options: StoreOptions = {}) {
 
     // -- sessions
 
-    createSession(input: { ticketIds: string[]; surface: Surface }): Result {
+    /**
+     * `agreedPriceCents` (by ticket id) is what a fan starting over last
+     * agreed to. It becomes the quote, so a price that rose since then still
+     * needs their acknowledgement instead of quietly becoming the new quote.
+     * It can't lower what they pay: a quote below the catalog must be
+     * accepted, which requotes it at the catalog price.
+     */
+    createSession(input: {
+      ticketIds: string[];
+      surface: Surface;
+      agreedPriceCents?: Record<string, number>;
+    }): Result {
       sweep();
       const wanted = new Map<string, number>();
       for (const id of input.ticketIds) {
@@ -402,7 +413,7 @@ export function createCheckoutStore(options: StoreOptions = {}) {
           return {
             ticketId: t.id,
             eventName: t.eventName,
-            quotedPriceCents: t.priceCents,
+            quotedPriceCents: input.agreedPriceCents?.[t.id] ?? t.priceCents,
           };
         }),
         status: "active",
@@ -418,7 +429,16 @@ export function createCheckoutStore(options: StoreOptions = {}) {
         seen: new Set([`created:${input.surface}`]),
       };
       sessions.set(s.id, s);
-      track("session_created", s, { ttl_ms: ttlMs }, input.surface);
+      track(
+        "session_created",
+        s,
+        {
+          ttl_ms: ttlMs,
+          ...(input.agreedPriceCents ? { started_over: true } : {}),
+        },
+        input.surface,
+      );
+      refresh(s); // a carried-over quote may already be out of date
       emit();
       return { ok: true, snapshot: snapshot(s) };
     },
